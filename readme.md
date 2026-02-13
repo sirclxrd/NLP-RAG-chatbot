@@ -1,127 +1,105 @@
+﻿# NLP RAG Chatbot  README
 
-# This chatbot
-This chatbot was developed as a university course project by a team of four people (including myself).
-The main goal was to create a chatbot capable of answering questions exclusively related to Natural Language Processing (NLP), by implementing a RAG (Retrieval-Augmented Generation) system.
-# How to: 
-# Chatbot RAG per NLP — README
+Direct and to the point: this repository contains a Retrieval-Augmented Generation
+(RAG) system designed to answer questions strictly about Natural Language Processing
+(NLP). The knowledge base is built from PDF documents stored in `app_pdf/` (course
+notes), indexed with embeddings and FAISS, and queried by a conversational chain that
+uses a local Ollama LLM.
 
-Breve e diretto: questo repository contiene un sistema RAG (Retrieval-Augmented
-Generation) pensato per rispondere esclusivamente a domande sul campo del Natural
-Language Processing (NLP). Il knowledge base è costruito a partire da documenti PDF
-(`app_pdf/`) (appunti del corso), indicizzati con embeddings e FAISS e interrogati
-da una catena conversazionale che usa un LLM locale (Ollama).
+Quick start (3 steps)
+1. Put your PDF documents into the `app_pdf/` folder.
+2. Start the required Ollama models (LLM + embedding model).
+3. Run the chatbot: `python RAG.py` and interact via the Gradio web UI.
 
-Per chi vuole andare subito al sodo:
-- prepara i documenti PDF in `app_pdf/`;
-- avvia i modelli Ollama richiesti;
-- lancia `python RAG.py` e interagisci via interfaccia Gradio.
+At-a-glance architecture
+- Input: textual question (from web UI or API) + optional conversation history.
+- Process: PDF loader  semantic chunking  embeddings  FAISS retriever 
+  ConversationalRetrievalChain (LangChain)  Ollama LLM.
+- Output: textual answer generated only from retrieved context. If the relevant
+  information is not in the context, the system will reply it is not present.
 
-Punti chiave (quick summary)
-- Input: domanda testuale dall'interfaccia (o API) + history di conversazione;
-- Output: risposta testuale generata SOLO dalle informazioni presenti nel contesto
-	recuperato (se l'informazione non è presente, il bot risponde che non lo sa);
-- Architettura: loader PDF → semantic chunking → embeddings → FAISS retriever →
-	ConversationalRetrievalChain (LangChain) + Ollama LLM.
+Why this project is conservative
+- The system is intentionally conservative to avoid hallucinations: the prompt
+  instructs the model to answer only if the information exists in the retrieved
+  context. If it cannot be found, the model replies that it does not know.
 
-Requisiti (software)
-- Python 3.9+ (consigliato 3.10/3.11)
-- Ollama (locale) installato e configurato
-- dipendenze Python (esempi):
+Requirements
+- Python 3.9+ (3.10/3.11 recommended)
+- Ollama (local) installed and configured
+- Key Python packages (example):
 
 ```powershell
 pip install gradio langchain langchain-ollama langchain-community \
-	langchain-huggingface faiss-cpu transformers numpy
+  langchain-huggingface faiss-cpu transformers numpy
 ```
 
-Nota: `faiss-cpu` su Windows/conda può richiedere una procedura diversa. Se hai una
-GPU e preferisci usare `faiss-gpu`, segui le istruzioni ufficiali di FAISS.
+Note: on Windows/conda, FAISS installation may require a different procedure.
+Use `faiss-cpu` for CPU-only installs or `faiss-gpu` if you have and want GPU support.
 
-Modelli Ollama richiesti
-- LLM: `mistral` (o altro modello compatibile) — avviare con:
+Ollama models used
+- LLM: `mistral` (or another compatible model). Start with:
 
 ```powershell
 ollama run mistral
 ```
 
-- Embedding model: `nomic-embed-text` (o altro compatibile) — avviare con:
+- Embedding model: `nomic-embed-text` (or another compatible embedder). Start with:
 
 ```powershell
 ollama run nomic-embed-text
 ```
 
-Questi comandi rendono i modelli accessibili localmente via Ollama e permettono a
-`RAG.py` di creare embeddings e generare risposte senza dipendere da servizi esterni.
+These make models available locally to the code in `RAG.py`.
 
-Configurazione dei documenti
-- Inserisci i PDF (appunti, dispense) in `app_pdf/`.
-- Il loader usato è `PyPDFDirectoryLoader`; i documenti vengono splittati tramite
-	`SemanticChunker` e indicizzati con embeddings (OllamaEmbeddings nel codice).
+How documents are processed
+- PDFs in `app_pdf/` are loaded with `PyPDFDirectoryLoader`.
+- Documents are chunked using `SemanticChunker`.
+- Chunks are embedded with `OllamaEmbeddings` and indexed with FAISS.
+- The retriever returns top-k hits (k=3 by default) used by the conversational chain.
 
-Eseguire il sistema (quick start)
-1. Assicurati che Ollama e i due modelli siano in esecuzione (vedi sopra).
-2. Verifica le dipendenze Python installate.
-3. Avvia il chatbot:
+Run the system (quick commands)
 
 ```powershell
+# Ensure Ollama + models are running
 python RAG.py
 ```
 
-Questo avvierà un'interfaccia Gradio (web UI) che ti permette di porre domande e
-ottenere risposte contestualizzate.
+This starts a Gradio interface where you can ask questions and get context-aware
+responses.
 
-Design & comportamento dell'agente
-- Il prompt system (definito in `RAG.py`) impone: "Rispondi SOLO se l'informazione è
-	presente nel contesto; altrimenti rispondi che non è presente". Il comportamento è
-	volutamente conservativo per evitare hallucination.
-- La catena mantiene una memoria conversazionale di finestra (`ConversationBufferWindowMemory`),
-	usata per contestualizzare follow-up.
+Behavior contract (inputs/outputs)
+- Input: `question` string and optional in-memory conversation history.
+- Output: `answer` string. The chain also returns source documents when enabled.
 
-Contract (inputs / outputs)
-- Input: stringa `question` (testo), opzionale `chat_history` (lista messaggi);
-- Output: stringa di risposta (testo) e — internamente — lista di documenti sorgente
-	(se `return_source_documents=True`).
+Common issues and debugging
+- FAISS import fails on Windows: try `pip install faiss-cpu` or use conda:
+  `conda install -c conda-forge faiss-cpu`.
+- Ollama issues: verify model status with `ollama ps` and start models with `ollama run`.
+- LangChain API errors: the repo uses `langchain_community` and `langchain_ollama`. If
+  you encounter API mismatches, check installed package versions.
 
-Esempi di prompt
-- Utente: "Qual è la differenza tra BERT e GPT?"
-- Sistema: recupera chunk rilevanti dai PDF e passa il contesto al LLM; LLM risponde
-	solamente con informazioni trovate nei chunk.
-
-Edge cases e limitazioni
-- Se il knowledge base non contiene l'argomento, il bot risponderà "not in context";
-	questo è voluto ma significa che la copertura dipende totalmente dai documenti forniti.
-- Qualità delle risposte dipende da: qualità dei PDF, accuratezza dello splitting,
-	e capacità del modello LLM scelto.
-
-Debug / problemi comuni
-- Errore FAISS: se l'import di FAISS fallisce su Windows, prova `pip install faiss-cpu`
-	o installa FAISS tramite conda (`conda install -c conda-forge faiss-cpu`).
-- Ollama: assicurati che i modelli siano caricati correttamente (`ollama ps` / `ollama run ...`).
-- Dipendenze LangChain: la repo usa componenti `langchain_community` e `langchain_ollama` —
-	verifica le versioni se incontri errori di API.
-
-Test rapido (smoke-test)
-1. Avvia Ollama per entrambi i modelli.
-2. Esegui nel repo:
+Smoke test
+1. Start Ollama with the two models.
+2. Run this quick import check:
 
 ```powershell
-python -c "import gradio, langchain, langchain_ollama; print('imports ok')"
+python -c "import gradio, langchain, langchain_ollama; print('imports OK')"
 ```
 
-Se OK, avvia `python RAG.py` e prova una domanda banale contenuta nei tuoi PDF.
+If OK, run `python RAG.py` and test with a question you know is present in the PDFs.
 
-Suggerimenti di miglioramento
-- Salvare l'indice FAISS su disco (già implementato) e aggiungere un flag per forzare
-	il rebuild solo quando i documenti cambiano.
-- Esporre una route REST oltre all'interfaccia Gradio per integrazione programmatica.
-- Aggiungere test automatici che verificano che per un set di query note il sistema
-	ritorni risposte attese (gold answers) o segnali correttamente "not in context".
+Suggestions for improvements
+- Add a CLI flag to force rebuild the FAISS index only when documents change.
+- Save generated answers with source citations to a log for easier QA.
+- Add a REST endpoint in addition to Gradio for programmatic access.
+- Add unit/integration tests that validate expected answers for a small set of queries.
 
-Contribuire
-- Se vuoi migliorare: apri una branch, modifica i loader o i template prompt e manda
-	una PR. In caso di dubbi, inviami gli errori prodotti e ti aiuto a sistemarli.
+Contribute
+- Create a branch, implement changes (loader, prompt template, or UI), and open a PR.
+- If you want, I can create a PR for this README change instead of pushing to `main`.
 
 License
-- Vedi file `LICENSE` nella root del repository.
+- See `LICENSE` in repository root.
 
-Se vuoi, applico questa versione del README direttamente nel repo (commit + push),
-oppure la traduco in inglese. Dimmi come preferisci procedere.
+If you want this English README committed to the repo, I can commit and push it now (or
+create a PR instead). Which do you prefer?
