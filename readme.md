@@ -5,6 +5,8 @@ This repository contains a Retrieval-Augmented Generation
 (NLP). The knowledge base is built from PDF documents stored in `app_pdf/` (course
 notes), indexed with embeddings and FAISS, and queried by a conversational chain that
 uses a local Ollama LLM.
+The prompt is built using guardrails so that the model responds while respecting specific constraints, 
+such as staying within the context of the documents and avoiding the use of inappropriate language.
 
 Quick start (3 steps)
 1. Put your PDF documents into the `app_pdf/` folder.
@@ -53,7 +55,7 @@ knowledge base.
 ## Documentation
 
 Implementation details and step-by-step instructions are provided
-in `Report.pdf` included in this repository — consult that file for concrete examples and recommended prompt templates.
+in `Report.pdf` included in this repository, consult that file for concrete examples and recommended prompt templates.
 
 
 
